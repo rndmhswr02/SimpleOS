@@ -2,6 +2,7 @@
 #include "console.h"
 #include "gdt.h"
 #include "idt.h"
+#include "irq.h"
 #include "kprintf.h"
 #include "serial.h"
 #include "shell.h"
@@ -26,6 +27,9 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
 
     idt_init();
     kprintf("[ok] IDT loaded (CPU exceptions 0-31)\n");
+
+    irq_init();
+    kprintf("[ok] PIC remapped (IRQs at vectors 32-47, all masked)\n");
 
     kprintf("\nType 'help' for commands.\n");
 

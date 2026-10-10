@@ -1,3 +1,4 @@
+#include "irq.h"
 #include "isr.h"
 #include "kprintf.h"
 #include "vga.h"
@@ -33,6 +34,11 @@ static const char *exception_names[32] = {
 };
 
 void isr_handler(struct registers *r) {
+    /* Hardware interrupts (remapped to vectors 32-47) */
+    if (r->int_no >= 32 && r->int_no < 48) {
+        irq_dispatch(r);
+        return;
+    }
     /* Breakpoint is harmless: report it and carry on. This proves that
      * returning from an exception (iret) works. */
     if (r->int_no == 3) {

@@ -13,4 +13,9 @@ static inline uint8_t inb(uint16_t port) {
     return ret;
 }
 
+/* Tiny delay: write to an unused port (traditional trick for slow hardware). */
+static inline void io_wait(void) {
+    outb(0x80, 0);
+}
+
 #endif

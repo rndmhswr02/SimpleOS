@@ -17,6 +17,15 @@ isr\num:
     jmp isr_common
 .endm
 
+# Stub for hardware IRQs: IRQ number n arrives as vector `vec`
+.macro IRQ n, vec
+.global irq\n
+irq\n:
+    push 0                  # dummy error code
+    push \vec               # vector number
+    jmp isr_common
+.endm
+
 .section .text
 
 ISR_NOERR 0
@@ -52,6 +61,23 @@ ISR_ERR   29
 ISR_ERR   30
 ISR_NOERR 31
 
+IRQ 0, 32
+IRQ 1, 33
+IRQ 2, 34
+IRQ 3, 35
+IRQ 4, 36
+IRQ 5, 37
+IRQ 6, 38
+IRQ 7, 39
+IRQ 8, 40
+IRQ 9, 41
+IRQ 10, 42
+IRQ 11, 43
+IRQ 12, 44
+IRQ 13, 45
+IRQ 14, 46
+IRQ 15, 47
+
 # Common code for all stubs. At this point the stack holds (top to bottom):
 #   vector number, error code, EIP, CS, EFLAGS
 .extern isr_handler
@@ -82,10 +108,16 @@ isr_common:
     add esp, 8              # drop vector number and error code
     iret
 
-# Table of stub addresses, so C code can install them in a loop
+# Tables of stub addresses, so C code can install them in a loop
 .section .rodata
 .global isr_stub_table
 isr_stub_table:
 .irp n, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
     .long isr\n
+.endr
+
+.global irq_stub_table
+irq_stub_table:
+.irp n, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+    .long irq\n
 .endr
