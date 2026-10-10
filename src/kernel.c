@@ -1,31 +1,33 @@
 #include <stdint.h>
 #include "console.h"
+#include "gdt.h"
+#include "idt.h"
+#include "kprintf.h"
 #include "serial.h"
 #include "shell.h"
 #include "vga.h"
-#include "kprintf.h"
-#include "gdt.h"
 
 #define MULTIBOOT_MAGIC 0x2BADB002
 
 void kernel_main(uint32_t magic, uint32_t mbi_addr) {
-    (void)mbi_addr;
-
     serial_init();
     term_clear();
-    gdt_init();
-    
-    kprintf("[ok] GDT loaded\n");
 
-    kprint("Hello from my kernel!\n");
+    kprintf("Hello from my kernel!\n");
 
     if (magic == MULTIBOOT_MAGIC)
-        kprint("Booted via Multiboot. All good.\n");
+        kprintf("Multiboot magic %08x: OK\n", magic);
     else
-        kprint("Warning: not booted via Multiboot.\n");
+        kprintf("Warning: bad Multiboot magic %08x\n", magic);
+    kprintf("Multiboot info at %p\n", (void *)(uintptr_t)mbi_addr);
 
-    kprint("\nThis is the beginning of your OS.\n");
-    kprint("Type 'help' for commands.\n");
+    gdt_init();
+    kprintf("[ok] GDT loaded\n");
+
+    idt_init();
+    kprintf("[ok] IDT loaded (CPU exceptions 0-31)\n");
+
+    kprintf("\nType 'help' for commands.\n");
 
     shell_run();
 }
