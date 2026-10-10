@@ -3,6 +3,7 @@
 #include "idt.h"
 #include "irq.h"
 #include "keyboard.h"
+#include "kheap.h"
 #include "kprintf.h"
 #include "paging.h"
 #include "pmm.h"
@@ -37,6 +38,9 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
     
     uint32_t mapped_mib = paging_init();
     kprintf("[ok] Paging on: %u MiB identity-mapped, page 0 unmapped\n", mapped_mib);
+
+    kheap_init();
+    kprintf("[ok] Kernel heap at %p (64 KiB mapped, grows on demand)\n", (void *)HEAP_START);
 
     irq_init();
     kprintf("[ok] PIC remapped (IRQs at vectors 32-47)\n");
