@@ -3,32 +3,32 @@
 #include "keyboard.h"
 #include "kprintf.h"
 #include "kstring.h"
+#include "timer.h"
 #include "vga.h"
 #include <stddef.h>
 #include <stdint.h>
 
 #define SHELL_LINE_MAX 128
 
-/* ---- Deliberate crashes ---- */
+/* ---- Deliberate crashes (Phase 1) ---- */
 
 static void test_div0(void) {
     volatile int a = 1;
     volatile int b = 0;
-    volatile int c = a / b;          /* volatile so the compiler can't optimize it away */
+    volatile int c = a / b;
     (void)c;
 }
 
 static void test_gpf(void) {
-    /* Selector 0x28 is beyond the end of our 3-entry GDT -> General Protection Fault */
     __asm__ volatile ("mov $0x28, %%ax\n\tmov %%ax, %%ds" : : : "ax");
 }
 
 static void test_ud(void) {
-    __asm__ volatile ("ud2");        /* guaranteed invalid opcode */
+    __asm__ volatile ("ud2");
 }
 
 static void test_int3(void) {
-    __asm__ volatile ("int3");       /* breakpoint: handled, then we return */
+    __asm__ volatile ("int3");
 }
 
 static void run_test(const char *name) {
@@ -37,6 +37,30 @@ static void run_test(const char *name) {
     else if (kstrcmp(name, "ud") == 0)    test_ud();
     else if (kstrcmp(name, "int3") == 0)  test_int3();
     else kprintf("Unknown test '%s'. Try: div0, gpf, ud, int3\n", name);
+}
+
+/* ---- Timer commands (Phase 2) ---- */
+
+static void cmd_uptime(void) {
+    uint32_t t  = timer_ticks();
+    uint32_t hz = timer_hz();
+
+    /* Split into seconds and milliseconds to avoid 32-bit overflow in t * 1000 */
+    uint32_t secs = t / hz;
+    uint32_t ms   = (t % hz) * 1000 / hz;
+
+    kprintf("Up %u.%03u s (%u ticks at %u Hz)\n", secs, ms, t, hz);
+}
+
+static void cmd_sleep(const char *arg) {
+    uint32_t ms;
+    if (!kparse_uint(arg, &ms)) {
+        kprintf("Usage: sleep <milliseconds>\n");
+        return;
+    }
+    kprintf("Sleeping %u ms...\n", ms);
+    timer_sleep_ms(ms);
+    kprintf("Done.\n");
 }
 
 /* ---- Shell ---- */
@@ -69,14 +93,19 @@ void shell_run(void) {
         if (len == 0) {
             continue;
         } else if (kstrcmp(line, "help") == 0) {
-            kprintf("Commands: help, clear, about, echo <text>, test <name>, halt\n");
+            kprintf("Commands: help, clear, about, echo <text>, uptime,\n");
+            kprintf("          sleep <ms>, test <name>, halt\n");
             kprintf("Tests:    div0, gpf, ud, int3\n");
         } else if (kstrcmp(line, "clear") == 0) {
             term_clear();
         } else if (kstrcmp(line, "about") == 0) {
-            kprintf("MyOS v%d.%d: own GDT, IDT, and exception handlers.\n", 0, 2);
+            kprintf("MyOS v%d.%d: GDT, IDT, PIC, PIT timer, IRQ keyboard.\n", 0, 3);
         } else if (kstarts_with(line, "echo ")) {
             kprintf("%s\n", line + 5);
+        } else if (kstrcmp(line, "uptime") == 0) {
+            cmd_uptime();
+        } else if (kstarts_with(line, "sleep ")) {
+            cmd_sleep(line + 6);
         } else if (kstarts_with(line, "test ")) {
             run_test(line + 5);
         } else if (kstrcmp(line, "halt") == 0) {

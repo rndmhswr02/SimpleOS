@@ -106,7 +106,7 @@ isr_common:
 
     popal
     add esp, 8              # drop vector number and error code
-    iret
+    iretd
 
 # Tables of stub addresses, so C code can install them in a loop
 .section .rodata

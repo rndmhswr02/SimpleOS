@@ -6,6 +6,7 @@
 #include "kprintf.h"
 #include "serial.h"
 #include "shell.h"
+#include "timer.h"
 #include "vga.h"
 
 #define MULTIBOOT_MAGIC 0x2BADB002
@@ -30,6 +31,12 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
 
     irq_init();
     kprintf("[ok] PIC remapped (IRQs at vectors 32-47, all masked)\n");
+    
+    timer_init(100);       /* 100 ticks per second */
+    kprintf("[ok] PIT timer at %u Hz\n", timer_hz());
+
+    __asm__ volatile ("sti");   /* from here on, hardware interrupts are live */
+    kprintf("[ok] Interrupts enabled\n");
 
     kprintf("\nType 'help' for commands.\n");
 
