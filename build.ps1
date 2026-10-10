@@ -21,18 +21,22 @@ function Run {
 $cflags = @(
     "--target=i686-elf",
     "-ffreestanding", "-fno-builtin", "-fno-stack-protector", "-fno-pic",
+    "-mno-sse", "-mno-mmx", "-mno-sse2",
     "-nostdlib", "-O2", "-Wall", "-Wextra", "-Werror", "-std=c11"
 )
 
 $objects = @()
 
-# 1. Assemble the entry stub
-Run "clang" @("--target=i686-elf", "-c", "src/boot.s", "-o", "build/boot.o")
-$objects += "build/boot.o"
+# 1. Assemble every .s file in src/
+foreach ($src in Get-ChildItem src -Filter *.s) {
+    $obj = "build/$($src.Name).o"
+    Run "clang" @("--target=i686-elf", "-c", "src/$($src.Name)", "-o", $obj)
+    $objects += $obj
+}
 
-# 2. Compile every C file in src/
+# 2. Compile every .c file in src/
 foreach ($src in Get-ChildItem src -Filter *.c) {
-    $obj = "build/$($src.BaseName).o"
+    $obj = "build/$($src.Name).o"
     Run "clang" ($cflags + @("-c", "src/$($src.Name)", "-o", $obj))
     $objects += $obj
 }
