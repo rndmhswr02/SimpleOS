@@ -3,6 +3,7 @@
 #include "serial.h"
 #include "shell.h"
 #include "vga.h"
+#include "kprintf.h"
 
 #define MULTIBOOT_MAGIC 0x2BADB002
 

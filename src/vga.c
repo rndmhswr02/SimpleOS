@@ -53,3 +53,7 @@ void term_putc(char c) {
 void term_print(const char *s) {
     while (*s) term_putc(*s++);
 }
+
+void term_set_color(uint8_t color) {
+    term_color = color;
+}
