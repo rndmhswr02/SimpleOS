@@ -4,6 +4,7 @@
 #include "shell.h"
 #include "vga.h"
 #include "kprintf.h"
+#include "gdt.h"
 
 #define MULTIBOOT_MAGIC 0x2BADB002
 
@@ -12,6 +13,9 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
 
     serial_init();
     term_clear();
+    gdt_init();
+    
+    kprintf("[ok] GDT loaded\n");
 
     kprint("Hello from my kernel!\n");
 
