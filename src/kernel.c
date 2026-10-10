@@ -32,10 +32,12 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
     idt_init();
     kprintf("[ok] IDT loaded (exceptions 0-31, IRQs 32-47)\n");
 
+    /* Memory management comes right after the IDT (so page faults are reported)
+     * and before interrupts are enabled (so nothing interrupts the paging switch). */
     pmm_init(mbi_addr);
     kprintf("[ok] PMM: %u MiB RAM, %u KiB free\n",
             pmm_ram_frames() >> 8, pmm_free_frames() << 2);
-    
+
     uint32_t mapped_mib = paging_init();
     kprintf("[ok] Paging on: %u MiB identity-mapped, page 0 unmapped\n", mapped_mib);
 
