@@ -4,6 +4,7 @@
 #include "irq.h"
 #include "keyboard.h"
 #include "kprintf.h"
+#include "paging.h"
 #include "pmm.h"
 #include "serial.h"
 #include "shell.h"
@@ -33,6 +34,9 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
     pmm_init(mbi_addr);
     kprintf("[ok] PMM: %u MiB RAM, %u KiB free\n",
             pmm_ram_frames() >> 8, pmm_free_frames() << 2);
+    
+    uint32_t mapped_mib = paging_init();
+    kprintf("[ok] Paging on: %u MiB identity-mapped, page 0 unmapped\n", mapped_mib);
 
     irq_init();
     kprintf("[ok] PIC remapped (IRQs at vectors 32-47)\n");
