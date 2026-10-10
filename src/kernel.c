@@ -1,8 +1,8 @@
 #include <stdint.h>
-#include "console.h"
 #include "gdt.h"
 #include "idt.h"
 #include "irq.h"
+#include "keyboard.h"
 #include "kprintf.h"
 #include "serial.h"
 #include "shell.h"
@@ -27,15 +27,19 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
     kprintf("[ok] GDT loaded\n");
 
     idt_init();
-    kprintf("[ok] IDT loaded (CPU exceptions 0-31)\n");
+    kprintf("[ok] IDT loaded (exceptions 0-31, IRQs 32-47)\n");
 
     irq_init();
-    kprintf("[ok] PIC remapped (IRQs at vectors 32-47, all masked)\n");
-    
-    timer_init(100);       /* 100 ticks per second */
+    kprintf("[ok] PIC remapped (IRQs at vectors 32-47)\n");
+
+    timer_init(100);
     kprintf("[ok] PIT timer at %u Hz\n", timer_hz());
 
-    __asm__ volatile ("sti");   /* from here on, hardware interrupts are live */
+    keyboard_init();
+    kprintf("[ok] Keyboard on IRQ 1\n");
+
+    /* Everything is registered: let hardware interrupts in. */
+    __asm__ volatile ("sti");
     kprintf("[ok] Interrupts enabled\n");
 
     kprintf("\nType 'help' for commands.\n");
