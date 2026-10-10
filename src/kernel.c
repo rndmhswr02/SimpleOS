@@ -4,6 +4,7 @@
 #include "irq.h"
 #include "keyboard.h"
 #include "kprintf.h"
+#include "pmm.h"
 #include "serial.h"
 #include "shell.h"
 #include "timer.h"
@@ -28,6 +29,10 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
 
     idt_init();
     kprintf("[ok] IDT loaded (exceptions 0-31, IRQs 32-47)\n");
+
+    pmm_init(mbi_addr);
+    kprintf("[ok] PMM: %u MiB RAM, %u KiB free\n",
+            pmm_ram_frames() >> 8, pmm_free_frames() << 2);
 
     irq_init();
     kprintf("[ok] PIC remapped (IRQs at vectors 32-47)\n");
