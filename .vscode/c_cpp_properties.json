@@ -1,0 +1,13 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "myos",
+      "compilerPath": "C:/Program Files/clang+llvm-18.1.8-x86_64-pc-windows-msvc/clang+llvm-18.1.8-x86_64-pc-windows-msvc/bin/clang.exe",
+      "compilerArgs": ["--target=i686-elf", "-ffreestanding"],
+      "cStandard": "c11",
+      "intelliSenseMode": "clang-x86",
+      "includePath": ["${workspaceFolder}/src"]
+    }
+  ]
+}
