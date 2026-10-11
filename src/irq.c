@@ -25,8 +25,11 @@ void irq_dispatch(struct registers *r) {
     if (pic_is_spurious((uint8_t)irq))
         return;                           /* ignore, and no EOI */
 
+    /* Acknowledge first. The timer handler may switch to another task and not
+     * return for a long time; without an EOI the PIC would never deliver another tick.
+     * This is safe: interrupts stay disabled inside the handler. */
+    pic_send_eoi((uint8_t)irq);
+
     if (handlers[irq])
         handlers[irq](r);
-
-    pic_send_eoi((uint8_t)irq);           /* always acknowledge, even if unhandled */
 }

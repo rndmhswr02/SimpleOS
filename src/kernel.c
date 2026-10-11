@@ -7,21 +7,13 @@
 #include "kprintf.h"
 #include "paging.h"
 #include "pmm.h"
+#include "sched.h"
 #include "serial.h"
 #include "shell.h"
-#include "sched.h"
 #include "timer.h"
 #include "vga.h"
 
 #define MULTIBOOT_MAGIC 0x2BADB002
-
-static void demo(void *arg) {
-    const char *name = arg;
-    for (int i = 0; i < 4; i++) {
-        kprintf("%s: %d\n", name, i);
-        task_yield();
-    }
-}
 
 void kernel_main(uint32_t magic, uint32_t mbi_addr) {
     serial_init();
@@ -41,8 +33,6 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
     idt_init();
     kprintf("[ok] IDT loaded (exceptions 0-31, IRQs 32-47)\n");
 
-    /* Memory management comes right after the IDT (so page faults are reported)
-     * and before interrupts are enabled (so nothing interrupts the paging switch). */
     pmm_init(mbi_addr);
     kprintf("[ok] PMM: %u MiB RAM, %u KiB free\n",
             pmm_ram_frames() >> 8, pmm_free_frames() << 2);
@@ -62,16 +52,14 @@ void kernel_main(uint32_t magic, uint32_t mbi_addr) {
     keyboard_init();
     kprintf("[ok] Keyboard on IRQ 1\n");
 
+    sched_init();
+    sched_start_preemption();
+    kprintf("[ok] Scheduler: kernel task + idle task, %u ms time slices\n",
+            5 * 1000 / timer_hz());
+
     /* Everything is registered: let hardware interrupts in. */
     __asm__ volatile ("sti");
     kprintf("[ok] Interrupts enabled\n");
-
-    sched_init();
-    task_create("A", demo, "A");
-    task_create("B", demo, "B");
-    for (int i = 0; i < 6; i++)
-        task_yield();
-    kprintf("main: done yielding\n");
 
     kprintf("\nType 'help' for commands.\n");
 

@@ -1,6 +1,8 @@
 #include "keyboard.h"
 #include "io.h"
 #include "irq.h"
+#include "cpu.h"
+#include "sched.h"
 #include <stdint.h>
 
 #define KB_DATA      0x60
@@ -33,6 +35,7 @@ static const char map_shift[128] = {
 static volatile char     buffer[KB_BUF_SIZE];
 static volatile uint32_t head = 0;
 static volatile uint32_t tail = 0;
+static struct task *kb_waiter = 0;     /* task sleeping in keyboard_getchar(), if any */
 
 /* Modifier state: only touched from the IRQ handler. */
 static int shift_down = 0;
@@ -72,6 +75,11 @@ static void keyboard_irq(struct registers *r) {
     if (next == tail) return;          /* buffer full: drop the keystroke */
     buffer[head] = c;
     head = next;
+
+    if (kb_waiter) {                   /* someone is waiting for a key: wake them */
+           task_wake(kb_waiter);
+           kb_waiter = 0;
+    }
 }
 
 void keyboard_init(void) {
@@ -83,12 +91,18 @@ void keyboard_init(void) {
 }
 
 char keyboard_getchar(void) {
-    /* Interrupts are enabled, so hlt wakes on the next interrupt (keyboard, or at
-     * worst the next timer tick). No CPU is burned while idle. */
-    while (head == tail)
-        __asm__ volatile ("hlt");
+    /* Interrupts stay off from the emptiness check until the task is blocked, so a
+     * keypress can't slip in between "buffer is empty" and "go to sleep". */
+    uint32_t flags = irq_save();
+
+    while (head == tail) {
+        kb_waiter = task_current();
+        task_block();                      /* returns after the IRQ handler wakes us */
+    }
 
     char c = buffer[tail];
     tail = (tail + 1) % KB_BUF_SIZE;
+
+    irq_restore(flags);
     return c;
 }
