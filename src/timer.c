@@ -8,10 +8,13 @@
 
 static volatile uint32_t ticks = 0;   /* written by the IRQ handler, read elsewhere */
 static uint32_t tick_hz = 0;
+static void (*tick_hook)(void) = 0;
 
 static void timer_irq(struct registers *r) {
     (void)r;
     ticks++;
+    if (tick_hook)
+        tick_hook();                      /* may switch to another task */
 }
 
 void timer_init(uint32_t hz) {
@@ -39,4 +42,8 @@ void timer_sleep_ms(uint32_t ms) {
     /* Unsigned subtraction stays correct even if the tick counter wraps around. */
     while ((uint32_t)(ticks - start) < wait)
         __asm__ volatile ("hlt");                   /* sleep until the next interrupt */
+}
+
+void timer_set_hook(void (*hook)(void)) {
+    tick_hook = hook;
 }

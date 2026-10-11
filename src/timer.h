@@ -13,4 +13,7 @@ uint32_t timer_hz(void);        /* configured tick rate */
  * Interrupts must be enabled, or this never returns. */
 void timer_sleep_ms(uint32_t ms);
 
+/* Register a function to call on every timer tick (from interrupt context). */
+void timer_set_hook(void (*hook)(void));
+
 #endif
