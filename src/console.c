@@ -1,4 +1,5 @@
 #include "console.h"
+#include "cpu.h"
 #include "serial.h"
 #include "vga.h"
 
@@ -10,6 +11,8 @@ void kputc(char c) {
 }
 
 void kprint(const char *s) {
+    uint32_t flags = irq_save();
     while (*s)
         kputc(*s++);
+    irq_restore(flags);
 }

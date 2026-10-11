@@ -1,3 +1,4 @@
+#include "cpu.h"
 #include "kheap.h"
 #include "kprintf.h"
 #include "memops.h"
@@ -84,7 +85,7 @@ void kheap_init(void) {
         heap_panic("could not map the initial heap", 0);
 }
 
-void *kmalloc(size_t size) {
+static void *kmalloc_nolock(size_t size) {
     if (size == 0 || size > HEAP_LIMIT - HEAP_START)
         return 0;
 
@@ -132,7 +133,7 @@ void *kcalloc(size_t count, size_t size) {
     return p;
 }
 
-void kfree(void *ptr) {
+static void kfree_nolock(void *ptr) {
     if (!ptr)
         return;
 
@@ -202,4 +203,18 @@ void kheap_dump(void) {
         kprintf("  %p: %s %u bytes\n", (const void *)b,
                 b->magic == MAGIC_USED ? "used" : "free", b->size);
     }
+}
+
+/* Public entry points: the heap is not re-entrant, so keep interrupts off while it runs. */
+void *kmalloc(size_t size) {
+    uint32_t flags = irq_save();
+    void *p = kmalloc_nolock(size);
+    irq_restore(flags);
+    return p;
+}
+
+void kfree(void *ptr) {
+    uint32_t flags = irq_save();
+    kfree_nolock(ptr);
+    irq_restore(flags);
 }

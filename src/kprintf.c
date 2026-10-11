@@ -1,5 +1,6 @@
 #include "kprintf.h"
 #include "console.h"
+#include "cpu.h"
 #include <stdarg.h>
 #include <stdint.h>
 
@@ -33,6 +34,8 @@ static void put_number(uint32_t value, uint32_t base, int negative,
 void kprintf(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
+
+    uint32_t irq_flags = irq_save();      /* keep each message in one piece */
 
     for (; *fmt; fmt++) {
         if (*fmt != '%') {
@@ -87,6 +90,7 @@ void kprintf(const char *fmt, ...) {
             break;
         case '\0':                          /* format ended after a lone '%' */
             va_end(ap);
+            irq_restore(irq_flags);
             return;
         default:                            /* unknown specifier: print it as-is */
             kputc('%');
@@ -96,4 +100,5 @@ void kprintf(const char *fmt, ...) {
     }
 
     va_end(ap);
+    irq_restore(irq_flags);
 }
