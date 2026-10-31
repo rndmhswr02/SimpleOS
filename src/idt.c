@@ -23,6 +23,7 @@ static struct idt_ptr   idtp;
 /* Array of the 32 stub addresses, defined in isr_stubs.s */
 extern uint32_t isr_stub_table[];
 extern uint32_t irq_stub_table[];
+extern void isr128(void);
 
 static void idt_set_gate(int n, uint32_t handler, uint16_t selector, uint8_t type_attr) {
     idt[n].offset_low  = handler & 0xFFFF;
@@ -43,6 +44,10 @@ void idt_init(void) {
     /* Hardware IRQs: vectors 32-47 */
     for (int i = 0; i < 16; i++)
         idt_set_gate(32 + i, irq_stub_table[i], 0x08, 0x8E);
+
+    /* System calls: int 0x80. Attribute 0xEE = present, DPL 3 (ring 3 may invoke it),
+    * 32-bit interrupt gate. */
+    idt_set_gate(0x80, (uint32_t)(uintptr_t)isr128, 0x08, 0xEE);
 
     __asm__ volatile ("lidt %0" : : "m"(idtp));
 }

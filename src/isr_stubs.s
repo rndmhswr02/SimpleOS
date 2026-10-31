@@ -78,6 +78,17 @@ IRQ 13, 45
 IRQ 14, 46
 IRQ 15, 47
 
+# System call stub (vector 0x80 = 128). The pushes are written as raw bytes so the
+# assembler can't pick an unexpected operand size:
+#   6A 00           push 0       (dummy error code)
+#   68 80 00 00 00  push 128     (vector number, 32-bit immediate)
+.global isr128
+isr128:
+    .byte 0x6A, 0x00
+    .byte 0x68
+    .long 128
+    jmp isr_common
+
 # Common code for all stubs. At this point the stack holds (top to bottom):
 #   vector number, error code, EIP, CS, EFLAGS
 .extern isr_handler

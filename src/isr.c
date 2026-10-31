@@ -1,6 +1,8 @@
-#include "irq.h"
 #include "isr.h"
+#include "irq.h"
 #include "kprintf.h"
+#include "sched.h"
+#include "syscall.h"
 #include "vga.h"
 
 static const char *exception_names[32] = {
@@ -33,20 +35,53 @@ static const char *exception_names[32] = {
     "Reserved"
 };
 
+static void print_page_fault_details(const struct registers *r) {
+    uint32_t cr2;
+    __asm__ volatile ("mov %%cr2, %0" : "=r"(cr2));
+    kprintf("Faulting address: %08x (%s, %s, %s)\n", cr2,
+            (r->err_code & 1) ? "protection violation" : "page not present",
+            (r->err_code & 2) ? "write" : "read",
+            (r->err_code & 4) ? "user mode" : "kernel mode");
+}
+
+/* An exception raised by ring-3 code: kill the offending process, keep the kernel alive. */
+static __attribute__((noreturn)) void user_fault(const struct registers *r) {
+    const struct task *t = task_current();
+
+    kprintf("\n[process %u '%s'] killed: %s at EIP=%08x (error code %08x)\n",
+            t->id, t->name,
+            r->int_no < 32 ? exception_names[r->int_no] : "unknown fault",
+            r->eip, r->err_code);
+    if (r->int_no == 14)
+        print_page_fault_details(r);
+
+    task_exit();
+}
+
 void isr_handler(struct registers *r) {
     /* Hardware interrupts (remapped to vectors 32-47) */
     if (r->int_no >= 32 && r->int_no < 48) {
         irq_dispatch(r);
         return;
     }
-    /* Breakpoint is harmless: report it and carry on. This proves that
-     * returning from an exception (iret) works. */
+
+    /* System calls */
+    if (r->int_no == 0x80) {
+        syscall_dispatch(r);
+        return;
+    }
+
+    /* Any other exception that came from user mode only costs that process its life. */
+    if ((r->cs & 3) == 3)
+        user_fault(r);
+
+    /* Breakpoint is harmless: report it and carry on. */
     if (r->int_no == 3) {
         kprintf("\n[breakpoint] at EIP=%08x\n", r->eip);
         return;
     }
 
-    /* Everything else is fatal for now: print a report and halt. */
+    /* Everything else is fatal for the kernel: print a report and halt. */
     term_set_color(0x4F);    /* white on red */
 
     kprintf("\n\n*** KERNEL EXCEPTION ***\n");
@@ -58,15 +93,8 @@ void isr_handler(struct registers *r) {
             r->eax, r->ebx, r->ecx, r->edx);
     kprintf("ESI=%08x  EDI=%08x  EBP=%08x\n", r->esi, r->edi, r->ebp);
 
-    if (r->int_no == 14) {
-        /* Page fault: CR2 holds the address that was accessed */
-        uint32_t cr2;
-        __asm__ volatile ("mov %%cr2, %0" : "=r"(cr2));
-        kprintf("Faulting address: %08x (%s, %s, %s)\n", cr2,
-                (r->err_code & 1) ? "protection violation" : "page not present",
-                (r->err_code & 2) ? "write" : "read",
-                (r->err_code & 4) ? "user mode" : "kernel mode");
-    }
+    if (r->int_no == 14)
+        print_page_fault_details(r);
 
     kprintf("System halted.\n");
     for (;;)

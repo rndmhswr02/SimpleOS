@@ -9,6 +9,7 @@ struct registers {
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;   /* from pushal */
     uint32_t int_no, err_code;                         /* from our stub */
     uint32_t eip, cs, eflags;                          /* from the CPU */
+    uint32_t useresp, ss;                              /* from the CPU, ONLY if it came from ring 3 */
 };
 
 void isr_handler(struct registers *r);
