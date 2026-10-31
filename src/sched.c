@@ -5,6 +5,8 @@
 #include "timer.h"
 #include <stddef.h>
 #include <stdint.h>
+#include "gdt.h"
+#include "paging.h"
 
 #define STACK_SIZE    8192u           /* per-task kernel stack */
 #define STACK_CANARY  0xDEADC0DEu     /* written at the far (low) end of each stack */
@@ -57,6 +59,8 @@ static struct task *find_task(uint32_t id) {
 
 static void destroy_task(struct task *t) {
     list_remove(t);
+    if (t->pd)
+        paging_destroy_address_space(t->pd);    /* user pages, page tables, directory */
     kfree(t->stack_base);
     kfree(t);
 }
@@ -123,6 +127,14 @@ static void schedule(void) {
 
     if (next != prev) {
         current = next;
+
+        /* Ring-3 interrupts and syscalls must land on THIS task's kernel stack. */
+        if (next->stack_base)
+            tss_set_kernel_stack((uint32_t)(uintptr_t)next->stack_base + STACK_SIZE);
+
+        /* Kernel tasks use the kernel directory; processes use their own. */
+        paging_switch(next->pd ? next->pd : paging_kernel_directory());
+
         switch_context(&prev->esp, next->esp);
 
         /* We only get here when somebody switches back to us. */
@@ -304,12 +316,13 @@ static void print_padded(const char *s, uint32_t width) {
 void task_dump(void) {
     uint32_t flags = irq_save();
 
-    kprintf("ID  NAME        STATE     CPU TICKS\n");
+    kprintf("ID  NAME        STATE     MODE    CPU TICKS\n");
     struct task *t = main_task;
     do {
         kprintf("%2u  ", t->id);
         print_padded(t->name, 12);
         print_padded(state_name(t->state), 10);
+        print_padded(t->pd ? "user" : "kernel", 8);
         kprintf("%u\n", t->cpu_ticks);
         t = t->next;
     } while (t != main_task);
