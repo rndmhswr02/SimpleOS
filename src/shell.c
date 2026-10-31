@@ -11,6 +11,7 @@
 #include "vga.h"
 #include <stddef.h>
 #include <stdint.h>
+#include "programs.h"
 
 #define SHELL_LINE_MAX 128
 #define SLOTS 16
@@ -194,6 +195,15 @@ static void cmd_kill(const char *arg) {
     }
 }
 
+static void cmd_run(const char *arg) {
+    struct task *t = program_run(arg);
+    if (!t) {
+        kprintf("run: unknown program or out of memory. Try 'programs'.\n");
+        return;
+    }
+    kprintf("Started process %u (%s)\n", t->id, t->name);
+}
+
 /* ---- Shell ---- */
 
 void shell_run(void) {
@@ -228,6 +238,7 @@ void shell_run(void) {
             kprintf("          meminfo, memmap, malloc <bytes>, free <slot>, heap,\n");
             kprintf("          ps, spawn <busy|count N>, kill <id>, test <name>, halt\n");
             kprintf("Tests:    div0, gpf, ud, int3, pf, null\n");
+            kprintf("          run <program>, programs, ps, kill <id>,\n");
         } else if (kstrcmp(line, "clear") == 0) {
             term_clear();
         } else if (kstrcmp(line, "about") == 0) {
@@ -248,6 +259,11 @@ void shell_run(void) {
             cmd_free(line + 5);
         } else if (kstrcmp(line, "heap") == 0) {
             kheap_dump();
+        } else if (kstarts_with(line, "run ")) {
+            cmd_run(line + 4);
+        } else if (kstrcmp(line, "programs") == 0) {
+            kprintf("Built-in programs:\n");
+            program_list(); 
         } else if (kstrcmp(line, "ps") == 0) {
             task_dump();
         } else if (kstarts_with(line, "spawn ")) {

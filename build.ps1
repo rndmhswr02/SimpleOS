@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-New-Item -ItemType Directory -Force -Path build | Out-Null
+New-Item -ItemType Directory -Force -Path build, build/user | Out-Null
 
 # Remove old object files so deleted/renamed sources can't sneak into the link
 Remove-Item build\*.o -ErrorAction SilentlyContinue
@@ -25,9 +25,17 @@ $cflags = @(
     "-nostdlib", "-O2", "-Wall", "-Wextra", "-Werror", "-std=c11"
 )
 
+# 0. User programs -> flat binaries at 0x40000000 (the kernel embeds them below)
+foreach ($src in Get-ChildItem user -Filter *.c) {
+    $name = $src.BaseName
+    Run "clang" ($cflags + @("-c", "user/$($src.Name)", "-o", "build/user/$name.o"))
+    Run "ld.lld" @("-m", "elf_i386", "-T", "user.ld", "--oformat=binary",
+                   "-o", "build/user/$name.bin", "build/user/$name.o")
+}
+
 $objects = @()
 
-# 1. Assemble every .s file in src/
+# 1. Assemble every .s file in src/ (userprogs.s pastes in the binaries from step 0)
 foreach ($src in Get-ChildItem src -Filter *.s) {
     $obj = "build/$($src.Name).o"
     Run "clang" @("--target=i686-elf", "-c", "src/$($src.Name)", "-o", $obj)
