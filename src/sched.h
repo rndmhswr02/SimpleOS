@@ -21,7 +21,8 @@ struct task {
     void *stack_base;             /* kmalloc'd stack (NULL for the boot task) */
     void (*entry)(void *);
     void *arg;
-    struct task *next;            /* circular list of all tasks */
+    struct task *next;   
+    uint32_t pd;                  /* physical address of this task's page directory (0 = the kernel's) */         /* circular list of all tasks */
 };
 
 /* Turn the code that is running right now into task 0 ("kernel") and create the idle task.

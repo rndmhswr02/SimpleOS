@@ -2,6 +2,7 @@
 #include "kprintf.h"
 #include "memops.h"
 #include "multiboot.h"
+#include "cpu.h"
 
 #define MAX_FRAMES    (PMM_MAX_PHYS / PAGE_SIZE)     /* 262144 frames = 1 GiB */
 #define BITMAP_WORDS  (MAX_FRAMES / 32)              /* 8192 words = 32 KiB   */
@@ -98,7 +99,7 @@ void pmm_init(uint32_t mbi_addr) {
                       boot_info->mmap_addr + boot_info->mmap_length);  /* the map itself */
 }
 
-uint32_t pmm_alloc_frame(void) {
+static uint32_t pmm_alloc_frame_nolock(void) {
     for (uint32_t i = 0; i < BITMAP_WORDS; i++) {
         uint32_t w = (search_hint + i) % BITMAP_WORDS;
 
@@ -118,7 +119,7 @@ uint32_t pmm_alloc_frame(void) {
     return 0;                                         /* out of memory */
 }
 
-void pmm_free_frame(uint32_t phys) {
+static void pmm_free_frame_nolock(uint32_t phys) {
     uint32_t f = phys >> 12;
 
     if ((phys & (PAGE_SIZE - 1)) || f >= MAX_FRAMES) {
@@ -173,4 +174,18 @@ void pmm_dump_map(void) {
 
         p += e->size + 4;
     }
+}
+
+/* Public entry points: keep interrupts off while the bitmap is being modified. */
+uint32_t pmm_alloc_frame(void) {
+    uint32_t flags = irq_save();
+    uint32_t frame = pmm_alloc_frame_nolock();
+    irq_restore(flags);
+    return frame;
+}
+
+void pmm_free_frame(uint32_t phys) {
+    uint32_t flags = irq_save();
+    pmm_free_frame_nolock(phys);
+    irq_restore(flags);
 }
